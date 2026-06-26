@@ -405,14 +405,8 @@ function startBotMatch() {
         targetWpm: Math.floor(Math.random() * 30) + 40
     };
 
-    vsMenu.classList.add('hidden');
-    vsRoom.classList.remove('hidden');
-    roomCodeDisplay.innerText = "BOT";
-    document.getElementById('p2-status').innerText = "Player 2 (PC Bot)";
-    document.getElementById('p2-status').classList.remove('text-gray-500', 'animate-pulse');
-    document.getElementById('p2-status').classList.add('text-[var(--text-highlight)]');
-    startMatchBtn.classList.remove('hidden');
-    document.getElementById('guest-waiting-msg').classList.add('hidden');
+    // 直接開始倒數，跳過等待畫面
+    startCountdownSequence(window.botQuoteIndex);
 }
 
 function updateTrackColors() {
