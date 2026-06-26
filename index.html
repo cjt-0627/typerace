@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sublime Type - Multiplayer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body class="h-screen w-screen flex flex-col items-center justify-center relative select-none">
+
+    <!-- 失去焦點時的遮罩 -->
+    <div id="focus-overlay"
+        class="absolute inset-0 bg-black bg-opacity-80 z-40 flex items-center justify-center cursor-pointer hidden">
+        <p class="text-2xl text-gray-400 font-mono tracking-widest">Click to focus</p>
+    </div>
+
+    <!-- 10秒紅綠燈倒數畫面 -->
+    <div id="traffic-light-container"
+        class="absolute top-48 left-1/2 transform -translate-x-1/2 z-40 hidden flex flex-col items-center gap-4 bg-[#1e1e1e] border-2 border-gray-700 p-6 rounded-2xl shadow-2xl">
+        <div class="flex gap-4 mb-2 bg-black p-4 rounded-xl border border-gray-800">
+            <div id="light-red"
+                class="w-12 h-12 rounded-full bg-gray-800 transition-all duration-300 shadow-[inset_0_0_10px_rgba(0,0,0,0.8)]">
+            </div>
+            <div id="light-yellow"
+                class="w-12 h-12 rounded-full bg-gray-800 transition-all duration-300 shadow-[inset_0_0_10px_rgba(0,0,0,0.8)]">
+            </div>
+            <div id="light-green"
+                class="w-12 h-12 rounded-full bg-gray-800 transition-all duration-300 shadow-[inset_0_0_10px_rgba(0,0,0,0.8)]">
+            </div>
+        </div>
+        <div id="traffic-countdown" class="text-4xl font-mono text-white font-bold tracking-widest">10</div>
+    </div>
+
+    <!-- 對戰 Modal 大廳 -->
+    <div id="vs-modal" class="absolute inset-0 bg-black bg-opacity-95 z-50 hidden flex items-center justify-center">
+        <div
+            class="bg-[#1e1e1e] p-8 rounded border border-gray-700 w-96 flex flex-col items-center shadow-2xl relative">
+            <button id="close-vs-modal"
+                class="absolute top-2 right-4 text-gray-500 hover:text-white font-bold text-xl">&times;</button>
+            <h2 class="text-2xl mb-6 text-white font-bold tracking-widest">SELECT MODE</h2>
+
+            <!-- 選擇介面 -->
+            <div id="vs-menu" class="w-full flex flex-col gap-4">
+                <button id="single-player-btn"
+                    class="w-full bg-gray-800 text-white font-bold py-3 rounded hover:bg-gray-700 transition">Single
+                    Player</button>
+                <button id="create-room-btn"
+                    class="w-full bg-[var(--text-correct)] text-black font-bold py-3 rounded hover:bg-opacity-80 transition">Create
+                    Room</button>
+                <div class="flex gap-2">
+                    <input type="text" id="join-room-input" placeholder="ENTER CODE"
+                        class="flex-1 bg-black text-white px-4 py-2 rounded border border-gray-600 text-center uppercase focus:outline-none focus:border-[var(--text-highlight)]"
+                        maxlength="4">
+                    <button id="join-room-btn"
+                        class="bg-gray-700 text-white font-bold py-2 px-4 rounded hover:bg-gray-600 transition">Join</button>
+                </div>
+                <button id="bot-match-btn"
+                    class="w-full border-2 border-gray-600 text-gray-400 font-bold py-2 rounded hover:bg-gray-800 hover:text-white transition mt-2">Play
+                    vs PC (Bot)</button>
+                <p id="vs-error"
+                    class="text-[var(--text-error)] text-sm text-center min-h-[2rem] mt-2 whitespace-pre-line"></p>
+            </div>
+
+            <!-- 房間等待介面 -->
+            <div id="vs-room" class="w-full hidden flex-col items-center gap-4">
+                <div class="text-center">
+                    <div class="text-sm text-gray-400 mb-1">ROOM CODE</div>
+                    <div id="room-code-display"
+                        class="text-4xl font-mono text-[var(--text-highlight)] tracking-widest font-bold">----</div>
+                </div>
+
+                <!-- Players List -->
+                <div class="w-full flex justify-between items-center px-4 py-3 bg-gray-800 rounded mb-2">
+                    <div class="font-bold text-[var(--text-correct)]">Player 1 (Host)</div>
+                    <div id="p2-status" class="font-bold text-gray-500 animate-pulse">Waiting for Player 2...</div>
+                </div>
+
+                <p id="room-status" class="text-sm text-gray-400 mb-4 hidden"></p>
+                <button id="start-match-btn" disabled
+                    class="w-full bg-gray-600 text-gray-400 font-bold py-3 rounded cursor-not-allowed hidden">
+                    Start Match (Waiting for P2...)
+                </button>
+                <button id="ready-btn"
+                    class="w-full bg-[var(--text-correct)] text-black font-bold py-3 rounded hover:bg-opacity-80 transition hidden">
+                    READY
+                </button>
+                <div id="guest-waiting-msg" class="w-full text-center text-sm text-[var(--text-highlight)] hidden">
+                    Waiting for Player 1 to start...
+                </div>
+                <button id="leave-room-btn"
+                    class="w-full border-2 border-gray-600 text-gray-400 font-bold py-2 rounded hover:bg-gray-800 hover:text-white transition mt-2">
+                    Leave Room
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 頂部統計數據與按鈕整合 -->
+    <header
+        class="absolute top-8 w-full max-w-5xl flex flex-wrap justify-between items-center px-8 text-gray-400 text-lg gap-4">
+        <div class="flex gap-6">
+            <div>
+                <span class="opacity-50">WPM:</span>
+                <span id="wpm-display" class="font-bold text-white">0</span>
+            </div>
+            <div>
+                <span class="opacity-50">ACC:</span>
+                <span id="acc-display" class="font-bold text-white">100%</span>
+            </div>
+        </div>
+        <div class="flex items-center gap-6">
+            <div id="best-container">
+                <span class="opacity-50">BEST:</span>
+                <span id="best-display" class="font-bold text-white">0</span>
+            </div>
+            <button id="vs-btn"
+                class="text-gray-500 hover:text-white transition font-bold tracking-widest text-sm flex items-center gap-2">
+                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+                MODE
+            </button>
+        </div>
+    </header>
+
+    <!-- 汽車進度條 -->
+    <div id="mp-progress-container" class="absolute top-24 w-full max-w-4xl px-8 flex flex-col gap-6">
+        <div class="flex items-center gap-4">
+            <span id="my-role-label"
+                class="text-xs text-[var(--text-correct)] w-16 font-bold tracking-wider text-right">YOU</span>
+            <div class="relative flex-1 h-16 border-b-4 border-gray-700">
+                <div id="my-progress"
+                    class="absolute top-0 transition-all duration-300 text-[var(--text-correct)] transform translate-y-2"
+                    style="left: 0%">
+                    <svg viewBox="0 0 20 10" width="80" height="40" xmlns="http://www.w3.org/2000/svg"
+                        shape-rendering="crispEdges">
+                        <path d="M 4 2 H 12 V 4 H 16 V 5 H 18 V 8 H 2 V 5 H 4 Z" fill="currentColor" />
+                        <path d="M 5 3 H 8 V 4 H 5 Z" fill="#fff" opacity="0.8" />
+                        <path d="M 9 3 H 11 V 4 H 9 Z" fill="#fff" opacity="0.8" />
+                        <rect x="3" y="8" width="3" height="2" fill="#111" />
+                        <rect x="13" y="8" width="3" height="2" fill="#111" />
+                    </svg>
+                </div>
+            </div>
+            <span id="my-mp-wpm" class="text-xs text-gray-400 w-10 text-right font-mono">0</span>
+        </div>
+        <div id="opp-track" class="flex items-center gap-4 hidden">
+            <span id="opp-role-label"
+                class="text-xs text-[var(--text-error)] w-16 font-bold tracking-wider text-right">OPP</span>
+            <div class="relative flex-1 h-16 border-b-4 border-gray-700">
+                <div id="opp-progress"
+                    class="absolute top-0 transition-all duration-300 text-[var(--text-error)] transform translate-y-2"
+                    style="left: 0%">
+                    <svg viewBox="0 0 20 10" width="80" height="40" xmlns="http://www.w3.org/2000/svg"
+                        shape-rendering="crispEdges">
+                        <path d="M 4 2 H 12 V 4 H 16 V 5 H 18 V 8 H 2 V 5 H 4 Z" fill="currentColor" />
+                        <path d="M 5 3 H 8 V 4 H 5 Z" fill="#fff" opacity="0.8" />
+                        <path d="M 9 3 H 11 V 4 H 9 Z" fill="#fff" opacity="0.8" />
+                        <rect x="3" y="8" width="3" height="2" fill="#111" />
+                        <rect x="13" y="8" width="3" height="2" fill="#111" />
+                    </svg>
+                </div>
+            </div>
+            <span id="opp-mp-wpm" class="text-xs text-gray-400 w-10 text-right font-mono">0</span>
+        </div>
+        <p id="match-result" class="text-center font-bold text-xl mt-2 hidden"></p>
+    </div>
+
+    <!-- 主體打字區域 -->
+    <main class="w-full max-w-4xl px-8 focus:outline-none" id="typing-area">
+        <div id="text-container" class="mb-6">
+            <!-- 文本將由 JS 生成 -->
+        </div>
+        <div id="quote-source"
+            class="text-right text-gray-500 italic text-sm mt-4 opacity-0 transition-opacity duration-1000">
+            <!-- 出處將由 JS 生成 -->
+        </div>
+        <div id="restart-hint" class="text-center text-gray-500 text-sm mt-8 opacity-0 transition-opacity duration-300">
+            Press <kbd class="bg-gray-800 px-2 py-1 rounded">Tab</kbd> to restart
+        </div>
+    </main>
+
+    <!-- Main Logic -->
+    <script type="module" src="js/main.js"></script>
+</body>
+
+</html>
